@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+/* 正解スタンプ */
+@keyframes stamp {
+  0% {
+    transform: scale(2.2) rotate(-8deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(0.95) rotate(-8deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(-8deg);
+    opacity: 1;
+  }
+}
+.animate-stamp {
+  animation: stamp 0.35s cubic-bezier(0.2, 0.8, 0.3, 1.2) both;
+}
+
+/* 正解時のフラッシュ */
+@keyframes correct-flash {
+  0% {
+    background-color: rgb(209 250 229);
+  }
+  100% {
+    background-color: white;
+  }
+}
+.animate-correct-flash {
+  animation: correct-flash 0.9s ease-out both;
+}
+
+/* 不正解シェイク */
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-8px);
+  }
+  40% {
+    transform: translateX(8px);
+  }
+  60% {
+    transform: translateX(-5px);
+  }
+  80% {
+    transform: translateX(5px);
+  }
+}
+.animate-shake {
+  animation: shake 0.4s ease-in-out both;
+}
+
+/* スコア加算ポップ */
+@keyframes score-pop {
+  0% {
+    transform: translateY(8px) scale(0.8);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+.animate-score-pop {
+  animation: score-pop 0.4s cubic-bezier(0.2, 0.8, 0.3, 1.2) both;
+}
