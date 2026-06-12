@@ -110,3 +110,38 @@ describe("latexEquals: レンダリング比較による意味的一致", () => 
     );
   });
 });
+
+describe("latexEquals: 追加の表記許容ルール", () => {
+  it("積分と dx の間の \\, は省略可", () => {
+    expect(latexEquals("\\int x^2 dx", "\\int x^2 \\, dx")).toBe(true);
+    expect(latexEquals("\\int x^2 \\, dx", "\\int x^2 dx")).toBe(true);
+  });
+  it("\\; \\: \\! \\quad などの空白コマンドも省略可", () => {
+    expect(latexEquals("a b", "a \\quad b")).toBe(true);
+    expect(latexEquals("a+b", "a\\!+\\;b")).toBe(true);
+  });
+  it("\\frac は 1 文字引数なら {} 不要", () => {
+    expect(latexEquals("\\frac lg", "\\frac{l}{g}")).toBe(true);
+    expect(latexEquals("T = 2\\pi\\sqrt{\\frac lg}", "T = 2\\pi\\sqrt{\\frac{l}{g}}")).toBe(true);
+    expect(latexEquals("\\frac12", "\\frac{1}{2}")).toBe(true);
+  });
+  it("絶対値は | / \\lvert\\rvert / \\abs のいずれでも可", () => {
+    expect(latexEquals("\\lvert x \\rvert", "|x|")).toBe(true);
+    expect(latexEquals("\\abs{x}", "|x|")).toBe(true);
+    expect(latexEquals("\\abs{x}", "\\lvert x \\rvert")).toBe(true);
+    expect(latexEquals("\\left| x \\right|", "|x|")).toBe(true);
+  });
+  it("プライムは ' でも \\prime でも可", () => {
+    expect(latexEquals("f'(x)", "f^{\\prime}(x)")).toBe(true);
+    expect(latexEquals("f'", "f\\prime")).toBe(true);
+    expect(latexEquals("x'", "x^\\prime")).toBe(true);
+  });
+  it("分数は \\frac でも {A \\over B} でも可", () => {
+    expect(latexEquals("\\frac{a}{b}", "{a \\over b}")).toBe(true);
+    expect(latexEquals("{a+b \\over c}", "\\frac{a+b}{c}")).toBe(true);
+  });
+  it("中身が違う絶対値・分数は不正解のまま", () => {
+    expect(latexEquals("\\abs{x}", "|y|")).toBe(false);
+    expect(latexEquals("{a \\over b}", "\\frac{a}{c}")).toBe(false);
+  });
+});

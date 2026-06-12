@@ -112,6 +112,49 @@ export function normalizeLatexRomanInsensitive(input: string): string {
   return normalizeLatex(s);
 }
 
+/**
+ * 表記の揺れを「同じ意味なら同じ文字列」に寄せる正準化。
+ * latexEquals がレンダリング比較する前に input/target の両方へ適用するので、
+ * 見た目（位置やデリミタの種類）が多少違っても同一視できる。
+ *
+ * 吸収する揺れ:
+ * - 空白コマンド `\,` `\;` `\:` `\!` `\quad` `\qquad` `\ `（積分と dx の間など）は無くても可
+ * - 絶対値: `\lvert … \rvert` / `\abs{…}` / `\left| … \right|` を素の `|…|` に統一
+ * - プライム: `\prime` / `^{\prime}` / `^\prime` を `'` に統一
+ * - 中置分数: `{A \over B}` を `\frac{A}{B}` に統一
+ */
+export function canonicalize(latex: string): string {
+  let s = latex;
+
+  // --- 空白コマンドの除去 ---
+  s = s.replace(/\\[,;:!]/g, "");
+  s = s.replace(/\\(?:quad|qquad)\b/g, "");
+  s = s.replace(/\\ /g, "");
+
+  // --- 中置分数 {A \over B} → \frac{A}{B} ---
+  let prevOver = "";
+  while (prevOver !== s) {
+    prevOver = s;
+    s = s.replace(/\{([^{}]*?)\\over\b([^{}]*?)\}/g, "\\frac{$1}{$2}");
+  }
+
+  // --- 絶対値デリミタを | に統一 ---
+  s = s.replace(/\\left\s*\|/g, "|").replace(/\\right\s*\|/g, "|");
+  s = s.replace(/\\lvert/g, "|").replace(/\\rvert/g, "|");
+  let prevAbs = "";
+  while (prevAbs !== s) {
+    prevAbs = s;
+    s = s.replace(/\\abs\s*\{([^{}]*)\}/g, "|$1|");
+  }
+
+  // --- プライムを ' に統一 ---
+  s = s.replace(/\^\s*\{\s*\\prime\s*\}/g, "'");
+  s = s.replace(/\^\s*\\prime/g, "'");
+  s = s.replace(/\\prime/g, "'");
+
+  return s;
+}
+
 /** KaTeX レンダリング結果（HTML）を取得。失敗時は null */
 function renderOrNull(latex: string): string | null {
   try {
@@ -142,12 +185,23 @@ export function latexEquals(input: string, target: string): boolean {
   if (!a) return false;
   if (a === b) return true;
 
+  // 1) 素のままレンダリング比較
   const ra = renderOrNull(a);
   const rb = renderOrNull(b);
   if (ra !== null && rb !== null && ra === rb) return true;
-  // レンダリングが異なる／できない場合は正規化文字列で比較
+
+  // 2) 正準化してからレンダリング比較
+  //    （空白コマンド・絶対値デリミタ・プライム・中置分数の揺れを吸収）
+  const ca = canonicalize(a);
+  const cb = canonicalize(b);
+  const rca = renderOrNull(ca);
+  const rcb = renderOrNull(cb);
+  if (rca !== null && rcb !== null && rca === rcb) return true;
+
+  // 3) 文字列正規化での比較（レンダリング不能時のフォールバック）
   if (normalizeLatex(a) === normalizeLatex(b)) return true;
-  // さらにローマン体の揺れ（\mathrm{d}x と dx など）を無視して比較
+  if (normalizeLatex(ca) === normalizeLatex(cb)) return true;
+  // 4) さらにローマン体の揺れ（\mathrm{d}x と dx など）を無視して比較
   return (
     normalizeLatexRomanInsensitive(a) === normalizeLatexRomanInsensitive(b)
   );
