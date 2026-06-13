@@ -185,6 +185,22 @@ export function pickProblems(difficulty: Difficulty, n: number): Problem[] {
   return shuffled.slice(0, Math.min(n, shuffled.length));
 }
 
+/**
+ * まだ出題していない問題をプールからランダムに 1 問選ぶ。
+ * （5 秒以内の Pass で問題を差し替える際に使用）
+ * 候補が無ければ null。
+ */
+export function pickUnusedProblem(
+  difficulty: Difficulty,
+  usedIds: ReadonlySet<string>,
+): Problem | null {
+  const candidates = getProblemPool(difficulty).filter(
+    (p) => !usedIds.has(p.id),
+  );
+  if (candidates.length === 0) return null;
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
 /** 数式の長さに応じた制限時間（20〜60秒） */
 export function timeLimitFor(problem: Problem): number {
   const len = problem.latex.replace(/\s+/g, "").length;

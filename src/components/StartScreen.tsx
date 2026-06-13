@@ -73,6 +73,9 @@ export default function StartScreen({ onStart }: Props) {
         <p>
           全10問・制限時間は数式の長さに応じて20〜60秒。Enter で判定、Esc で Pass。
         </p>
+        <p className="mt-1 text-sky-500">
+          出題から最初の5秒以内に Pass すれば、ノーカウントで別の問題に交換できます。
+        </p>
         <p className="mt-1">
           physics（\dd, \grad, \rot…）・bm（\bm）・braket（\bra, \ket, \braket）マクロ対応。
         </p>

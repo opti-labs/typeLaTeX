@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   DIFFICULTY_INFO,
+  pickUnusedProblem,
   timeLimitFor,
   type Difficulty,
   type Problem,
@@ -22,23 +23,39 @@ type Props = {
 type Feedback = "correct" | "wrong" | "pass" | "timeout" | null;
 
 const TICK_MS = 100;
+/** この秒数以内に Pass した場合はノーカウントで別の問題に差し替える */
+const FREE_PASS_SECONDS = 5;
 
-export default function GameScreen({ difficulty, problems, onFinish }: Props) {
+export default function GameScreen({
+  difficulty,
+  problems: initialProblems,
+  onFinish,
+}: Props) {
+  const [problems, setProblems] = useState<Problem[]>(initialProblems);
   const [index, setIndex] = useState(0);
   const [input, setInput] = useState("");
-  const [timeLeft, setTimeLeft] = useState(() => timeLimitFor(problems[0]));
+  const [timeLeft, setTimeLeft] = useState(() =>
+    timeLimitFor(initialProblems[0]),
+  );
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [wrongAttempts, setWrongAttempts] = useState(0);
   const [totalScore, setTotalScore] = useState(0);
   const [lastGain, setLastGain] = useState<ScoreBreakdown | null>(null);
+  const [swapNotice, setSwapNotice] = useState(false);
 
   const resultsRef = useRef<QuestionResult[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const transitioningRef = useRef(false);
+  // これまでに表示した問題 ID（差し替え時の重複回避に使う）
+  const seenIdsRef = useRef<Set<string>>(
+    new Set(initialProblems.map((p) => p.id)),
+  );
 
   const problem = problems[index];
   const timeLimit = timeLimitFor(problem);
   const info = DIFFICULTY_INFO[difficulty];
+  // 出題から FREE_PASS_SECONDS 秒以内かどうか
+  const inFreeWindow = timeLimit - timeLeft <= FREE_PASS_SECONDS;
 
   const goNext = useCallback(
     (result: QuestionResult) => {
@@ -129,8 +146,30 @@ export default function GameScreen({ difficulty, problems, onFinish }: Props) {
     }
   };
 
+  /** 5 秒以内の Pass: 未出題の問題に差し替える。差し替えできたら true */
+  const trySwapProblem = () => {
+    const next = pickUnusedProblem(difficulty, seenIdsRef.current);
+    if (!next) return false; // 差し替え候補が尽きたら通常 Pass にフォールバック
+    seenIdsRef.current.add(next.id);
+    setProblems((prev) => {
+      const copy = [...prev];
+      copy[index] = next;
+      return copy;
+    });
+    setInput("");
+    setWrongAttempts(0);
+    setTimeLeft(timeLimitFor(next));
+    setFeedback(null);
+    setSwapNotice(true);
+    window.setTimeout(() => setSwapNotice(false), 1400);
+    inputRef.current?.focus();
+    return true;
+  };
+
   const pass = () => {
     if (transitioningRef.current) return;
+    // 最初の 5 秒以内なら不正解にせず別の問題を提供（ノーカウント）
+    if (inFreeWindow && trySwapProblem()) return;
     goNext({
       problem,
       status: "pass",
@@ -188,8 +227,15 @@ export default function GameScreen({ difficulty, problems, onFinish }: Props) {
             style={{ width: `${timeRatio * 100}%` }}
           />
         </div>
-        <div className="text-right text-xs text-gray-400 mt-1 tabular-nums">
-          残り {Math.ceil(timeLeft)} 秒
+        <div className="flex items-center justify-between mt-1 text-xs tabular-nums">
+          <span
+            className={`font-semibold text-sky-600 transition-opacity ${
+              swapNotice ? "opacity-100" : "opacity-0"
+            }`}
+          >
+            別の問題に交換しました（ノーカウント）
+          </span>
+          <span className="text-gray-400">残り {Math.ceil(timeLeft)} 秒</span>
         </div>
       </div>
 
@@ -250,9 +296,18 @@ export default function GameScreen({ difficulty, problems, onFinish }: Props) {
         <div className="flex items-center justify-between mt-3">
           <button
             onClick={pass}
-            className="px-5 py-2.5 rounded-xl border-2 border-gray-300 text-gray-500 font-semibold hover:bg-gray-100 transition-colors cursor-pointer"
+            title={
+              inFreeWindow
+                ? "最初の5秒以内：ノーカウントで別の問題に交換"
+                : "この問題をスキップ（0点）"
+            }
+            className={`px-5 py-2.5 rounded-xl border-2 font-semibold transition-colors cursor-pointer ${
+              inFreeWindow
+                ? "border-sky-300 text-sky-600 hover:bg-sky-50"
+                : "border-gray-300 text-gray-500 hover:bg-gray-100"
+            }`}
           >
-            Pass（Esc）
+            {inFreeWindow ? "別の問題へ（Esc・ノーカウント）" : "Pass（Esc）"}
           </button>
           {feedback === "wrong" && (
             <span className="text-red-500 font-semibold text-sm">
