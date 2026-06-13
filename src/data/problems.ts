@@ -123,6 +123,7 @@ export const PROBLEMS: Problem[] = [
   { id: "u24", difficulty: "university", latex: "\\Gamma(n+1) = n!", label: "ガンマ関数と階乗" },
   { id: "u25", difficulty: "university", latex: "\\frac{\\dd^2 x}{\\dd t^2} + \\omega^2 x = 0", label: "単振動の方程式" },
   { id: "u26", difficulty: "university", latex: "\\dv{x}{t} = v", label: "速度の定義（微分）" },
+  { id: "u47", difficulty: "university", latex: "\\pdv[2]{u}{t} = c^2 \\pdv[2]{u}{x}", label: "1次元波動方程式（∂記法）" },
 
   // ===== 大学範囲（物理数学） =====
   { id: "u27", difficulty: "university", latex: "\\hat{f}(k) = \\int_{-\\infty}^{\\infty} f(x) e^{-ikx} \\, \\dd x", label: "フーリエ変換" },

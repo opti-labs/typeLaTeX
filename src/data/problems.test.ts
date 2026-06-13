@@ -7,6 +7,7 @@ import {
   timeLimitFor,
 } from "./problems";
 import { katexMacros } from "../lib/katexMacros";
+import { expandDerivatives } from "../lib/latexPreprocess";
 
 describe("問題データ", () => {
   it("ID が重複していない", () => {
@@ -18,7 +19,7 @@ describe("問題データ", () => {
     "%s（%s）が KaTeX でレンダリングできる",
     (_id, _label, latex) => {
       expect(() =>
-        katex.renderToString(latex, {
+        katex.renderToString(expandDerivatives(latex), {
           displayMode: true,
           macros: { ...katexMacros },
           throwOnError: true,

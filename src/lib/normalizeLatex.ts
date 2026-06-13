@@ -1,5 +1,6 @@
 import katex from "katex";
 import { katexMacros } from "./katexMacros";
+import { expandDerivatives } from "./latexPreprocess";
 
 /**
  * コマンドの同義語マップ（正規化時に左辺 → 右辺に統一する）
@@ -127,7 +128,8 @@ export function normalizeLatexRomanInsensitive(input: string): string {
  * - 空の中括弧 `{}`（`{}_n` ⇔ `_n`）を除去
  */
 export function canonicalize(latex: string): string {
-  let s = latex;
+  // physics の導関数マクロ \pdv[n]{}{} / \dv を \frac 形へ展開
+  let s = expandDerivatives(latex);
 
   // --- 空白コマンドの除去 ---
   s = s.replace(/\\[,;:!]/g, "");

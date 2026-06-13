@@ -184,6 +184,35 @@ describe("latexEquals: \\frac{A}B（分母が1文字・中括弧省略）", () =
   });
 });
 
+describe("latexEquals: physics の \\pdv / \\dv（省略可能な階数）", () => {
+  it("\\pdv[2]{x}{t} ⇔ \\frac{\\partial^2 x}{\\partial t^2}", () => {
+    expect(
+      latexEquals("\\pdv[2]{x}{t}", "\\frac{\\partial^2 x}{\\partial t^2}"),
+    ).toBe(true);
+  });
+  it("\\pdv{f}{x} ⇔ \\frac{\\partial f}{\\partial x}", () => {
+    expect(latexEquals("\\pdv{f}{x}", "\\frac{\\partial f}{\\partial x}")).toBe(
+      true,
+    );
+  });
+  it("\\dv[2]{x}{t} ⇔ \\frac{\\mathrm{d}^2 x}{\\mathrm{d} t^2}", () => {
+    expect(
+      latexEquals("\\dv[2]{x}{t}", "\\frac{\\mathrm{d}^2 x}{\\mathrm{d} t^2}"),
+    ).toBe(true);
+  });
+  it("1次元波動方程式: \\pdv[2] 記法 ⇔ 素の \\partial 記法", () => {
+    expect(
+      latexEquals(
+        "\\pdv[2]{u}{t} = c^2 \\pdv[2]{u}{x}",
+        "\\frac{\\partial^2 u}{\\partial t^2} = c^2 \\frac{\\partial^2 u}{\\partial x^2}",
+      ),
+    ).toBe(true);
+  });
+  it("階数が違えば不正解", () => {
+    expect(latexEquals("\\pdv[2]{x}{t}", "\\pdv[3]{x}{t}")).toBe(false);
+  });
+});
+
 describe("latexEquals: スクリーンショットの実ケース（AST比較）", () => {
   it("立方数の和: 上付き・下付きの順序が逆でも可", () => {
     expect(
