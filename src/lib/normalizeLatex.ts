@@ -123,7 +123,7 @@ export function normalizeLatexRomanInsensitive(input: string): string {
  * - 絶対値・縦棒: `\lvert` `\rvert` `\vert` `\abs{…}` を素の `|…|` に統一
  * - プライム: `\prime` / `^{\prime}` / `^{\prime\prime}`（多重）/ `^'` を `'` に統一
  * - 中置分数: `{A \over B}` を `\frac{A}{B}` に統一
- * - 微分の d: `\dd` と素の `d` を同一視
+ * - 微分の d: `\dd` / `\mathrm{d}` / `\mathrm d` と素の `d` を同一視
  * - 空の中括弧 `{}`（`{}_n` ⇔ `_n`）を除去
  */
 export function canonicalize(latex: string): string {
@@ -159,9 +159,12 @@ export function canonicalize(latex: string): string {
   s = s.replace(/\^\s*\{\s*('+)\s*\}/g, "$1"); // ^{''} → ''
   s = s.replace(/\^\s*('+)/g, "$1"); //          ^'   → '
 
-  // --- 微分の d を統一: \dd（physics の upright d）と素の d を同一視 ---
-  //     「微分の d は通常の d でも \dd でも正解」を全問題で実現する。
+  // --- 微分の d を統一: \dd / \mathrm{d} / \mathrm d と素の d を同一視 ---
+  //     「微分の d は通常の d でも \dd でも \mathrm d でも正解」を実現する。
+  //     文字 d のみ対象なので \mathrm{C}（組合せ）などには影響しない。
   s = s.replace(/\\dd\b/g, "d");
+  s = s.replace(/\\mathrm\s*\{d\}/g, "d");
+  s = s.replace(/\\mathrm\s+d/g, "d");
 
   // --- 空の中括弧 {} を除去（{}_n と _n を同一視） ---
   s = s.replace(/\{\}(?=[_^])/g, "");

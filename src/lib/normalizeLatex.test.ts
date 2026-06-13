@@ -160,6 +160,28 @@ describe("latexEquals: 微分の d は通常の d でも \\dd でも可（全問
       ),
     ).toBe(true);
   });
+  it("\\mathrm{d} / \\mathrm d も微分 d として \\dd・d と一致", () => {
+    expect(latexEquals("\\mathrm{d}x", "\\dd x")).toBe(true);
+    expect(latexEquals("\\mathrm dx", "\\dd x")).toBe(true);
+    expect(latexEquals("\\mathrm dx", "dx")).toBe(true);
+  });
+});
+
+describe("latexEquals: \\frac{A}B（分母が1文字・中括弧省略）", () => {
+  it("\\frac{\\sin x}x ⇔ \\frac{\\sin x}{x}", () => {
+    expect(latexEquals("\\frac{\\sin x}x", "\\frac{\\sin x}{x}")).toBe(true);
+  });
+  it("\\frac{\\pi}2 ⇔ \\frac{\\pi}{2}", () => {
+    expect(latexEquals("\\frac{\\pi}2", "\\frac{\\pi}{2}")).toBe(true);
+  });
+  it("ディリクレ積分: 実入力（\\frac{A}B + \\mathrm dx）が模範に一致", () => {
+    expect(
+      latexEquals(
+        "\\int_0^\\infty\\frac{\\sin x}x\\mathrm dx =\\frac{\\pi}2",
+        "\\int_0^\\infty \\frac{\\sin x}{x} \\, \\dd x = \\frac{\\pi}{2}",
+      ),
+    ).toBe(true);
+  });
 });
 
 describe("latexEquals: スクリーンショットの実ケース（AST比較）", () => {
