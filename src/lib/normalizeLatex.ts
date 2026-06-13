@@ -119,9 +119,12 @@ export function normalizeLatexRomanInsensitive(input: string): string {
  *
  * 吸収する揺れ:
  * - 空白コマンド `\,` `\;` `\:` `\!` `\quad` `\qquad` `\ `（積分と dx の間など）は無くても可
- * - 絶対値: `\lvert … \rvert` / `\abs{…}` / `\left| … \right|` を素の `|…|` に統一
- * - プライム: `\prime` / `^{\prime}` / `^\prime` を `'` に統一
+ * - デリミタの自動サイズ `\left` `\right` は無視（`\left\langle` ⇔ `\langle`）
+ * - 絶対値・縦棒: `\lvert` `\rvert` `\vert` `\abs{…}` を素の `|…|` に統一
+ * - プライム: `\prime` / `^{\prime}` / `^{\prime\prime}`（多重）/ `^'` を `'` に統一
  * - 中置分数: `{A \over B}` を `\frac{A}{B}` に統一
+ * - 微分の d: `\dd` と素の `d` を同一視
+ * - 空の中括弧 `{}`（`{}_n` ⇔ `_n`）を除去
  */
 export function canonicalize(latex: string): string {
   let s = latex;
@@ -131,6 +134,10 @@ export function canonicalize(latex: string): string {
   s = s.replace(/\\(?:quad|qquad)\b/g, "");
   s = s.replace(/\\ /g, "");
 
+  // --- デリミタの自動サイズ \left \right を無視 ---
+  //     \left\langle ⇔ \langle、\left| ⇔ |、\left( ⇔ ( など
+  s = s.replace(/\\left\b/g, "").replace(/\\right\b/g, "");
+
   // --- 中置分数 {A \over B} → \frac{A}{B} ---
   let prevOver = "";
   while (prevOver !== s) {
@@ -138,26 +145,47 @@ export function canonicalize(latex: string): string {
     s = s.replace(/\{([^{}]*?)\\over\b([^{}]*?)\}/g, "\\frac{$1}{$2}");
   }
 
-  // --- 絶対値デリミタを | に統一 ---
-  s = s.replace(/\\left\s*\|/g, "|").replace(/\\right\s*\|/g, "|");
-  s = s.replace(/\\lvert/g, "|").replace(/\\rvert/g, "|");
+  // --- 絶対値・縦棒デリミタを | に統一 ---
+  s = s.replace(/\\vert\b/g, "|");
+  s = s.replace(/\\lvert\b/g, "|").replace(/\\rvert\b/g, "|");
   let prevAbs = "";
   while (prevAbs !== s) {
     prevAbs = s;
     s = s.replace(/\\abs\s*\{([^{}]*)\}/g, "|$1|");
   }
 
-  // --- プライムを ' に統一 ---
-  s = s.replace(/\^\s*\{\s*\\prime\s*\}/g, "'");
-  s = s.replace(/\^\s*\\prime/g, "'");
+  // --- プライムを ' に統一（多重プライム・上付き表記も含む） ---
   s = s.replace(/\\prime/g, "'");
+  s = s.replace(/\^\s*\{\s*('+)\s*\}/g, "$1"); // ^{''} → ''
+  s = s.replace(/\^\s*('+)/g, "$1"); //          ^'   → '
 
   // --- 微分の d を統一: \dd（physics の upright d）と素の d を同一視 ---
   //     「微分の d は通常の d でも \dd でも正解」を全問題で実現する。
   s = s.replace(/\\dd\b/g, "d");
 
+  // --- 空の中括弧 {} を除去（{}_n と _n を同一視） ---
+  s = s.replace(/\{\}(?=[_^])/g, "");
+
   return s;
 }
+
+/**
+ * AST 比較用のマクロセット。表示用の katexMacros とは別に、
+ * デリミタを自動サイズ（\left\right）にしない素の形へ展開する。
+ * これにより `\braket{\phi|\psi}` と手書きの `\langle\phi|\psi\rangle`、
+ * `\abs{x}` と `|x|` などが同じ AST になる。
+ */
+const comparisonMacros: Record<string, string> = {
+  ...katexMacros,
+  "\\abs": "|#1|",
+  "\\norm": "\\|#1\\|",
+  "\\bra": "\\langle #1|",
+  "\\ket": "|#1\\rangle",
+  "\\braket": "\\langle #1\\rangle",
+  "\\ketbra": "|#1\\rangle\\langle #2|",
+  "\\ev": "\\langle #1\\rangle",
+  "\\comm": "[#1,#2]",
+};
 
 /**
  * KaTeX のパースツリー（AST）を正準化した文字列キーを返す。
@@ -177,7 +205,7 @@ function astKey(latex: string): string | null {
         __parse: (e: string, o: object) => unknown;
       }
     ).__parse(canonicalize(latex), {
-      macros: { ...katexMacros },
+      macros: { ...comparisonMacros },
       throwOnError: true,
       strict: false,
     });

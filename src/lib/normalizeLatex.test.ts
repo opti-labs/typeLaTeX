@@ -184,4 +184,29 @@ describe("latexEquals: スクリーンショットの実ケース（AST比較）
       latexEquals("T=2\\pi\\sqrt\\frac lg", "T = 2\\pi\\sqrt{\\frac{l}{g}}"),
     ).toBe(true);
   });
+  it("組合せ: {}_n と _n（空の中括弧の有無）", () => {
+    expect(
+      latexEquals(
+        "_n\\mathrm{C}_r = \\frac{n!}{r!(n-r)!}",
+        "{}_n \\mathrm{C}_r = \\frac{n!}{r!(n-r)!}",
+      ),
+    ).toBe(true);
+  });
+  it("ベッセル: 多重プライム ^{\\prime\\prime} ⇔ ''", () => {
+    expect(
+      latexEquals(
+        "x^2y^{\\prime\\prime} + xy^\\prime + (x^2 - n^2) y = 0",
+        "x^2 y'' + x y' + (x^2 - n^2) y = 0",
+      ),
+    ).toBe(true);
+  });
+  it("ブラケット: \\langle\\phi\\vert\\psi\\rangle ⇔ \\braket{\\phi|\\psi}", () => {
+    expect(
+      latexEquals("\\langle \\phi\\vert\\psi\\rangle", "\\braket{\\phi|\\psi}"),
+    ).toBe(true);
+  });
+  it("bra/ket も手書きデリミタと一致", () => {
+    expect(latexEquals("\\langle \\psi|", "\\bra{\\psi}")).toBe(true);
+    expect(latexEquals("|\\psi\\rangle", "\\ket{\\psi}")).toBe(true);
+  });
 });
