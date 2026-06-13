@@ -145,3 +145,43 @@ describe("latexEquals: 追加の表記許容ルール", () => {
     expect(latexEquals("{a \\over b}", "\\frac{a}{c}")).toBe(false);
   });
 });
+
+describe("latexEquals: 微分の d は通常の d でも \\dd でも可（全問題統一）", () => {
+  it("dx ⇔ \\dd x ⇔ \\mathrm{d}x", () => {
+    expect(latexEquals("\\int x^2 dx", "\\int x^2 \\, \\dd x")).toBe(true);
+    expect(latexEquals("\\int x^2 \\dd x", "\\int x^2 dx")).toBe(true);
+    expect(latexEquals("\\int x^2 \\mathrm{d}x", "\\int x^2 \\dd x")).toBe(true);
+  });
+  it("ガウス積分: dx 表記でも \\, \\dd x の模範解答に一致", () => {
+    expect(
+      latexEquals(
+        "\\int_{-\\infty}^{\\infty} e^{-x^2} dx=\\sqrt \\pi",
+        "\\int_{-\\infty}^{\\infty} e^{-x^2} \\, \\dd x = \\sqrt{\\pi}",
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("latexEquals: スクリーンショットの実ケース（AST比較）", () => {
+  it("立方数の和: 上付き・下付きの順序が逆でも可", () => {
+    expect(
+      latexEquals(
+        "\\sum^n_{k=1}k^3=\\left\\{ \\frac{n(n+1)}{2}\\right\\}^2",
+        "\\sum_{k=1}^{n} k^3 = \\left\\{ \\frac{n(n+1)}{2} \\right\\}^2",
+      ),
+    ).toBe(true);
+  });
+  it("倍角: スペースの有無", () => {
+    expect(
+      latexEquals(
+        "\\cos2\\theta=1-2\\sin^2\\theta",
+        "\\cos 2\\theta = 1 - 2\\sin^2\\theta",
+      ),
+    ).toBe(true);
+  });
+  it("単振り子: \\sqrt\\frac lg（中括弧省略）", () => {
+    expect(
+      latexEquals("T=2\\pi\\sqrt\\frac lg", "T = 2\\pi\\sqrt{\\frac{l}{g}}"),
+    ).toBe(true);
+  });
+});

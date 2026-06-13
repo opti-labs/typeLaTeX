@@ -152,7 +152,72 @@ export function canonicalize(latex: string): string {
   s = s.replace(/\^\s*\\prime/g, "'");
   s = s.replace(/\\prime/g, "'");
 
+  // --- 微分の d を統一: \dd（physics の upright d）と素の d を同一視 ---
+  //     「微分の d は通常の d でも \dd でも正解」を全問題で実現する。
+  s = s.replace(/\\dd\b/g, "d");
+
   return s;
+}
+
+/**
+ * KaTeX のパースツリー（AST）を正準化した文字列キーを返す。
+ * AST 比較により、HTML レンダリング比較では吸収しきれない次の揺れを同一視する:
+ * - 中括弧の省略（`\frac lg` ⇔ `\frac{l}{g}`、`\sqrt2` ⇔ `\sqrt{2}`）
+ *   → 1 要素だけの ordgroup を取り除いて比較
+ * - 上付き・下付きの順序（`\sum^n_{k=1}` ⇔ `\sum_{k=1}^{n}`）
+ *   → supsub ノードは sub/sup をフィールドで持つため順序非依存。さらにキーをソート
+ * canonicalize で空白・絶対値・プライム・\dd・中置分数を吸収してからパースする。
+ * 失敗時は null。
+ */
+function astKey(latex: string): string | null {
+  try {
+    // katex.__parse は AST（ParseNode[]）を返す内部 API
+    const tree = (
+      katex as unknown as {
+        __parse: (e: string, o: object) => unknown;
+      }
+    ).__parse(canonicalize(latex), {
+      macros: { ...katexMacros },
+      throwOnError: true,
+      strict: false,
+    });
+    return stableStringify(stripAst(tree));
+  } catch {
+    return null;
+  }
+}
+
+/** AST を正準化: loc（ソース位置）を除去し、1 要素 ordgroup を展開する */
+function stripAst(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(stripAst);
+  if (node && typeof node === "object") {
+    const n = node as Record<string, unknown>;
+    // 1 要素だけの ordgroup（= 冗長な中括弧）は中身に展開して括弧の有無を無視
+    if (n.type === "ordgroup" && Array.isArray(n.body) && n.body.length === 1) {
+      return stripAst(n.body[0]);
+    }
+    const out: Record<string, unknown> = {};
+    for (const k of Object.keys(n)) {
+      if (k === "loc") continue; // ソース位置は意味に無関係
+      out[k] = stripAst(n[k]);
+    }
+    return out;
+  }
+  return node;
+}
+
+/** オブジェクトのキー順に依存しない安定した JSON 文字列化 */
+function stableStringify(value: unknown): string {
+  return JSON.stringify(value, (_key, val) => {
+    if (val && typeof val === "object" && !Array.isArray(val)) {
+      const sorted: Record<string, unknown> = {};
+      for (const k of Object.keys(val as object).sort()) {
+        sorted[k] = (val as Record<string, unknown>)[k];
+      }
+      return sorted;
+    }
+    return val;
+  });
 }
 
 /** KaTeX レンダリング結果（HTML）を取得。失敗時は null */
@@ -185,23 +250,28 @@ export function latexEquals(input: string, target: string): boolean {
   if (!a) return false;
   if (a === b) return true;
 
-  // 1) 素のままレンダリング比較
+  // 1) AST（パースツリー）比較 — メインの判定
+  //    中括弧の省略・上下付きの順序・空白・\dd/d・絶対値・プライム・中置分数を吸収
+  const ka = astKey(a);
+  const kb = astKey(b);
+  if (ka !== null && kb !== null && ka === kb) return true;
+
+  // 2) 素のままレンダリング比較（AST が取れない構文のフォールバック）
   const ra = renderOrNull(a);
   const rb = renderOrNull(b);
   if (ra !== null && rb !== null && ra === rb) return true;
 
-  // 2) 正準化してからレンダリング比較
-  //    （空白コマンド・絶対値デリミタ・プライム・中置分数の揺れを吸収）
+  // 3) 正準化してからレンダリング比較
   const ca = canonicalize(a);
   const cb = canonicalize(b);
   const rca = renderOrNull(ca);
   const rcb = renderOrNull(cb);
   if (rca !== null && rcb !== null && rca === rcb) return true;
 
-  // 3) 文字列正規化での比較（レンダリング不能時のフォールバック）
+  // 4) 文字列正規化での比較（レンダリング不能時のフォールバック）
   if (normalizeLatex(a) === normalizeLatex(b)) return true;
   if (normalizeLatex(ca) === normalizeLatex(cb)) return true;
-  // 4) さらにローマン体の揺れ（\mathrm{d}x と dx など）を無視して比較
+  // 5) さらにローマン体の揺れ（\mathrm{d}x と dx など）を無視して比較
   return (
     normalizeLatexRomanInsensitive(a) === normalizeLatexRomanInsensitive(b)
   );
